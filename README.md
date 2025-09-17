@@ -1,6 +1,7 @@
 # 📘 README – ICC Profile Converter
 
-Een Python tool om **TIFF-bestanden** te converteren van een bron-ICC naar een doel-ICC profiel, met de optie om metadata te behouden via ExifTool.
+Een Python tool om **TIFF-bestanden** te converteren van een bron-ICC naar een doel-ICC profiel, 
+met de optie om metadata te behouden via ExifTool.
 
 ---
 
@@ -12,7 +13,7 @@ Een Python tool om **TIFF-bestanden** te converteren van een bron-ICC naar een d
    cd TIFF_ICCprofile
    ```
 
-2. **Installeer dependencies** (Pillow vereist).
+2. **Installeer dependencies** (Pillow + tqdm vereist).
    ```bash
    python -m venv .venv
    source .venv/bin/activate    # macOS/Linux
@@ -24,7 +25,7 @@ Een Python tool om **TIFF-bestanden** te converteren van een bron-ICC naar een d
    - **macOS/Linux**: meestal via `brew install exiftool` of pakketbeheer.  
    - **Windows (zonder admin-rechten)**:
      1. Download ZIP van [ExifTool website](https://exiftool.org/).
-     2. Pak uit naar `C:\Tools\exiftool-XX.XX_XX`.
+     2. Pak uit naar `C:\Tools\exiftool-13.36_64` (of vergelijkbare versie).
      3. Hernoem `exiftool(-k).exe` naar **`exiftool.exe`**.
 
 ---
@@ -34,10 +35,8 @@ Een Python tool om **TIFF-bestanden** te converteren van een bron-ICC naar een d
 In `icc_convert.py` staat bovenaan:
 
 ```python
-
- # Pas aan indien nodig
- EXIFTOOL_PATH = r"C:\Tools\exiftool-13.36_64\exiftool.exe"
- 
+# Pas aan indien nodig
+EXIFTOOL_PATH = r"C:\Tools\exiftool-13.36_64\exiftool.exe"
 ```
 
 - **Windows**: zet dit naar de juiste locatie.  
@@ -58,7 +57,7 @@ python icc_convert.py [bestanden of mappen] -s <source.icc> -t <target.icc> [opt
   python icc_convert.py ./testdata -s CNN808DA.ICC -t AdobeRGB1998.icc
   ```
 
-- Metadata behouden (bit-perfect, maar `ModifyDate` en `MetadataDate` worden bijgewerkt):
+- Metadata behouden (volledige kopie, `ModifyDate` en `MetadataDate` bijgewerkt):
   ```bash
   python icc_convert.py ./testdata -s CNN808DA.ICC -t AdobeRGB1998.icc --preserve-metadata all
   ```
@@ -82,10 +81,10 @@ python icc_convert.py [bestanden of mappen] -s <source.icc> -t <target.icc> [opt
 | `paths` | Bestanden en/of mappen met TIFFs. Ondersteunt mix van `.tif` en `.tiff`. |
 | `-s`, `--source-icc` | Bestandsnaam van het bronprofiel (zoals gevonden met `--list-icc`). |
 | `-t`, `--target-icc` | Bestandsnaam van het doelprofiel (zoals gevonden met `--list-icc`). |
-| `--icc-dirs` | Extra directories om ICC-profielen te zoeken. |
+| `--icc-dirs` | Extra directories om ICC-profielen in te zoeken. |
 | `--list-icc` | Toon alle gevonden ICC-profielen en stop daarna. |
 | `-o`, `--overwrite` | Overschrijf de originele bestanden in plaats van `_converted.tif` aan te maken. |
-| `--preserve-metadata` | Kopieer metadata met ExifTool: <br>• `smart` – merge metadata (default gedrag)<br>• `all` – bit-perfect kopie + update `ModifyDate` en `MetadataDate`<br>• `xmp` – alleen XMP secties |
+| `--preserve-metadata` | Kopieer metadata met ExifTool: <br>• `smart` – merge metadata (default gedrag)<br>• `all` – volledige kopie (waarden kunnen genormaliseerd worden; `ModifyDate` en `MetadataDate` worden bijgewerkt)<br>• `xmp` – alleen XMP secties |
 | `-h`, `--help` | Toon help. |
 
 ---
