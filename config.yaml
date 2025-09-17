@@ -14,7 +14,7 @@ preserve_metadata: all
 
 # Extra ICC-profiel directories
 icc_dirs:
-  - /Users/haighton/Development/KB/TIFF_ICCprofile/iccprofiles
+  - ./iccprofiles
 
 
 # Logging naar CSV bestand (optioneel)
