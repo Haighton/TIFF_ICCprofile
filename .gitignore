@@ -1,0 +1,53 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# Logs / reports
+*.log
+*.out
+*.err
+
+# OS-specific
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE / editor settings
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Python tooling
+.coverage
+*.coverage
+htmlcov/
+.cache/
+.pytest_cache/
+
+# Jupyter / IPython
+.ipynb_checkpoints
+
+# Data / output
+*.tif
+*.tiff
+*_AdobeRGB.tif
+output/
+converted/
+iccprofiles/
+testdata/

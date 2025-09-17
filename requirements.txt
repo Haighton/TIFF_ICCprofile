@@ -1,0 +1,4 @@
+Pillow>=10.0.0
+
+# ExifTool is extern nodig (geen pip package).
+# Installatie: https://exiftool.org/
