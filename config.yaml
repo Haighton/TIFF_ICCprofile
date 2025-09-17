@@ -1,0 +1,21 @@
+# Configuratiebestand voor icc_convert.py
+
+# Bron ICC profiel (zoals gevonden met --list-icc)
+source_icc: CNN8083DA.ICC
+
+# Doel ICC profiel
+target_icc: AdobeRGB1998.icc
+
+# Map voor geconverteerde bestanden (optioneel)
+outdir: ./converted
+
+# Metadata preservatie methode (smart, all, xmp)
+preserve_metadata: all
+
+# Extra ICC-profiel directories
+icc_dirs:
+  - /Users/haighton/Development/KB/TIFF_ICCprofile/iccprofiles
+
+
+# Logging naar CSV bestand (optioneel)
+log: resultaten.csv

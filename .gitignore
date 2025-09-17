@@ -21,6 +21,7 @@ dist/
 *.log
 *.out
 *.err
+*.csv
 
 # OS-specific
 .DS_Store
