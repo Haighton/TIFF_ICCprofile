@@ -51,4 +51,4 @@ htmlcov/
 output/
 converted/
 iccprofiles/
-testdata/
+testdata*/

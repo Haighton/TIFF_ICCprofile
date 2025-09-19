@@ -1,11 +1,11 @@
-# 📘 README – ICC Profile Converter
+# ICC Profile Converter
 
 Een Python tool om **TIFF-bestanden** te converteren van een bron-ICC naar een doel-ICC profiel, 
 met de optie om metadata te behouden via ExifTool.
 
 ---
 
-## 🔧 Installatie
+## Installatie
 
 1. **Clone of download** dit project.
    ```bash
@@ -30,7 +30,7 @@ met de optie om metadata te behouden via ExifTool.
 
 ---
 
-## ⚙️ Configuratie van `EXIFTOOL_PATH`
+## Configuratie van `EXIFTOOL_PATH`
 
 In `icc_convert.py` staat bovenaan:
 
@@ -44,7 +44,7 @@ else:
 
 ---
 
-## 🚀 Gebruik
+## Gebruik
 
 ### Basissyntax
 ```bash
@@ -89,7 +89,7 @@ python icc_convert.py [bestanden of mappen] -s <source.icc> -t <target.icc> [opt
 
 ---
 
-## 📝 CLI Opties
+## CLI Opties
 
 | Optie | Beschrijving |
 |-------|--------------|
@@ -109,7 +109,7 @@ python icc_convert.py [bestanden of mappen] -s <source.icc> -t <target.icc> [opt
 
 ---
 
-## ⚙️ Config.yaml voorbeeld
+## Config.yaml voorbeeld
 
 ```yaml
 source_icc: CNN8083DA.ICC
@@ -120,9 +120,15 @@ preserve_metadata: all
 
 ---
 
-## ✅ Workflow samengevat
+## Workflow samengevat
 1. Zoek ICC-profielen (`--list-icc`).  
 2. Kies bron- en doelprofiel.  
 3. Run conversie (`-s ... -t ...`).  
 4. Optioneel: metadata kopiëren (`--preserve-metadata`), logging (`--log`), outputmap (`--outdir`).  
 5. Gebruik `--force` om mismatches tóch te converteren.  
+
+---
+
+## Dev
+
+thomas.haighton@kb.nl voor KB Digitalisering (09-2025).
