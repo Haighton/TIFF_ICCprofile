@@ -98,7 +98,7 @@ python icc_convert.py [bestanden of mappen] -s <source.icc> -t <target.icc> [opt
 | `-t`, `--target-icc` | Bestandsnaam van het doelprofiel (zoals gevonden met `--list-icc`). |
 | `--icc-dirs` | Extra directories om ICC-profielen in te zoeken. |
 | `--list-icc` | Toon alle gevonden ICC-profielen en stop daarna. |
-| `-o`, `--overwrite` | Overschrijf de originele bestanden. |
+| `--overwrite` | Overschrijf de originele bestanden. |
 | `--outdir` | Map waar geconverteerde bestanden worden opgeslagen (default: `./output`). |
 | `--log` | Schrijf resultaten weg in een logbestand (CSV). |
 | `--force` | Forceer conversie ook bij ICC mismatch (anders overslaan). |
