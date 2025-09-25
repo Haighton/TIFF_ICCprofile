@@ -120,14 +120,16 @@ def process_file(tiff_file, source_icc, target_icc, overwrite, preserve, outdir,
                     return (tiff_file, False, f"Overgeslagen (ICC mismatch: {embedded_name})")
 
             transform = ImageCms.buildTransform(
-                str(source_icc), str(target_icc), "RGB", "RGB")
+                str(source_icc), str(target_icc), "RGB", "RGB"
+            )
             im_converted = ImageCms.applyTransform(im, transform)
 
+            # Zorg dat outputmap bestaat (alleen relevant bij non-overwrite)
             outdir.mkdir(parents=True, exist_ok=True)
 
             if overwrite:
-                # Schrijf altijd eerst naar een tijdelijke file
-                tmp_path = outdir / f"{tiff_file.stem}_tmp.tif"
+                # Schrijf tmp naast origineel (zelfde station, dus geen rename probleem)
+                tmp_path = tiff_file.parent / f"{tiff_file.stem}_tmp.tif"
                 final_path = tiff_file
             else:
                 tmp_path = outdir / tiff_file.name
