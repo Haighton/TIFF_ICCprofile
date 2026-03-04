@@ -117,39 +117,66 @@ def process_file(tiff_file, target_icc, overwrite, preserve, outdir):
             with open(target_icc, "rb") as f:
                 target_profile_bytes = f.read()
 
+            outdir.mkdir(parents=True, exist_ok=True)
+
             if embedded_bytes:
-                # Kleurconversie: embedded profiel → doelprofiel
+                # Kleurconversie: embedded profiel → doelprofiel via Pillow
                 source_profile = ImageCms.ImageCmsProfile(io.BytesIO(embedded_bytes))
                 target_profile = ImageCms.ImageCmsProfile(io.BytesIO(target_profile_bytes))
                 transform = ImageCms.buildTransform(
                     source_profile, target_profile, im.mode, im.mode
                 )
                 im_out = ImageCms.applyTransform(im, transform)
+
+                if overwrite:
+                    tmp_path = tiff_file.parent / f"{tiff_file.stem}_tmp.tif"
+                    final_path = tiff_file
+                else:
+                    tmp_path = outdir / tiff_file.name
+                    final_path = tmp_path
+
+                im_out.save(tmp_path, format="TIFF", icc_profile=target_profile_bytes)
+
+                if preserve:
+                    preserve_metadata(tiff_file, tmp_path, preserve)
+
+                if overwrite:
+                    tmp_path.replace(final_path)
+
                 source_name = get_profile_name(embedded_bytes)
-                note = f"Geconverteerd van '{source_name}'"
+                return (tiff_file, True, f"Geconverteerd van '{source_name}'")
+
             else:
-                # Geen embedded profiel: pixels ongewijzigd, doelprofiel ingebed
-                im_out = im.copy()
-                note = "Geen bronprofiel gevonden; doelprofiel direct ingebed"
+                # Geen embedded profiel: alleen ICC-metadata injecteren via ExifTool
+                exiftool = exiftool_available()
+                if exiftool:
+                    if overwrite:
+                        dst = tiff_file
+                    else:
+                        dst = outdir / tiff_file.name
+                        shutil.copy2(tiff_file, dst)
+                    cmd = [exiftool, f"-icc_profile<={str(target_icc)}",
+                           "-overwrite_original", str(dst)]
+                    subprocess.run(cmd, check=True, capture_output=True)
+                    return (tiff_file, True, "Geen bronprofiel; ICC-metadata bijgewerkt via ExifTool")
+                else:
+                    # Fallback: Pillow re-save met doelprofiel
+                    im_out = im.copy()
+                    if overwrite:
+                        tmp_path = tiff_file.parent / f"{tiff_file.stem}_tmp.tif"
+                        final_path = tiff_file
+                    else:
+                        tmp_path = outdir / tiff_file.name
+                        final_path = tmp_path
+                    im_out.save(tmp_path, format="TIFF", icc_profile=target_profile_bytes)
+                    if preserve:
+                        preserve_metadata(tiff_file, tmp_path, preserve)
+                    if overwrite:
+                        tmp_path.replace(final_path)
+                    return (tiff_file, True, "Geen bronprofiel; doelprofiel ingebed via Pillow (ExifTool niet beschikbaar)")
 
-            outdir.mkdir(parents=True, exist_ok=True)
-
-            if overwrite:
-                tmp_path = tiff_file.parent / f"{tiff_file.stem}_tmp.tif"
-                final_path = tiff_file
-            else:
-                tmp_path = outdir / tiff_file.name
-                final_path = tmp_path
-
-            im_out.save(tmp_path, format="TIFF", icc_profile=target_profile_bytes)
-
-            if preserve:
-                preserve_metadata(tiff_file, tmp_path, preserve)
-
-            if overwrite:
-                tmp_path.replace(final_path)
-
-        return (tiff_file, True, note)
+    except subprocess.CalledProcessError as e:
+        return (tiff_file, False, f"ExifTool fout: {e.stderr.decode().strip()}")
     except Exception as e:
         return (tiff_file, False, str(e))
 
