@@ -1,7 +1,9 @@
 # ICC Profile Converter
 
-Een Python tool om **TIFF-bestanden** te converteren van een bron-ICC naar een doel-ICC profiel, 
-met de optie om metadata te behouden via ExifTool.
+Een Python tool om **TIFF-bestanden** te converteren naar een doel-ICC profiel.
+Het bronprofiel wordt automatisch uit de embedded metadata van de TIFF gelezen.
+Bestanden zonder embedded profiel krijgen het doelprofiel direct ingebed.
+Optioneel kan metadata worden behouden via ExifTool.
 
 ---
 
@@ -21,8 +23,8 @@ met de optie om metadata te behouden via ExifTool.
    pip install -r requirements.txt
    ```
 
-3. **ExifTool installeren**  
-   - **macOS/Linux**: meestal via `brew install exiftool` of pakketbeheer.  
+3. **ExifTool installeren**
+   - **macOS/Linux**: meestal via `brew install exiftool` of pakketbeheer.
    - **Windows (zonder admin-rechten)**:
      1. Download ZIP van [ExifTool website](https://exiftool.org/).
      2. Pak uit naar `C:\Tools\exiftool-13.36_64` (of vergelijkbare versie).
@@ -48,23 +50,23 @@ else:
 
 ### Basissyntax
 ```bash
-python icc_convert.py [bestanden of mappen] -s <source.icc> -t <target.icc> [opties]
+python icc_convert.py [bestanden of mappen] -t <target.icc> [opties]
 ```
 
 ### Voorbeelden
 - Alle TIFFs in `./testdata` converteren:
   ```bash
-  python icc_convert.py ./testdata -s CNN8083DA.ICC -t AdobeRGB1998.icc
+  python icc_convert.py ./testdata -t AdobeRGB1998.icc
   ```
 
 - Metadata behouden (volledige kopie, `ModifyDate` en `MetadataDate` bijgewerkt):
   ```bash
-  python icc_convert.py ./testdata -s CNN8083DA.ICC -t AdobeRGB1998.icc --preserve-metadata all
+  python icc_convert.py ./testdata -t AdobeRGB1998.icc --preserve-metadata all
   ```
 
 - Alleen XMP metadata kopiëren:
   ```bash
-  python icc_convert.py ./testdata -s CNN8083DA.ICC -t AdobeRGB1998.icc --preserve-metadata xmp
+  python icc_convert.py ./testdata -t AdobeRGB1998.icc --preserve-metadata xmp
   ```
 
 - Alle gevonden ICC-profielen tonen (inclusief extra map):
@@ -74,12 +76,7 @@ python icc_convert.py [bestanden of mappen] -s <source.icc> -t <target.icc> [opt
 
 - Output in aparte map + logging naar CSV:
   ```bash
-  python icc_convert.py ./testdata -s CNN8083DA.ICC -t AdobeRGB1998.icc --outdir ./converted --log resultaten.csv
-  ```
-
-- Forceren ondanks ICC mismatch:
-  ```bash
-  python icc_convert.py ./testdata -s CNN8083DA.ICC -t AdobeRGB1998.icc --force
+  python icc_convert.py ./testdata -t AdobeRGB1998.icc --outdir ./converted --log resultaten.csv
   ```
 
 - Configbestand gebruiken:
@@ -94,14 +91,12 @@ python icc_convert.py [bestanden of mappen] -s <source.icc> -t <target.icc> [opt
 | Optie | Beschrijving |
 |-------|--------------|
 | `paths` | Bestanden en/of mappen met TIFFs. Ondersteunt mix van `.tif` en `.tiff`. |
-| `-s`, `--source-icc` | Bestandsnaam van het bronprofiel (zoals gevonden met `--list-icc`). |
 | `-t`, `--target-icc` | Bestandsnaam van het doelprofiel (zoals gevonden met `--list-icc`). |
 | `--icc-dirs` | Extra directories om ICC-profielen in te zoeken. |
 | `--list-icc` | Toon alle gevonden ICC-profielen en stop daarna. |
 | `--overwrite` | Overschrijf de originele bestanden. |
 | `--outdir` | Map waar geconverteerde bestanden worden opgeslagen (default: `./output`). |
 | `--log` | Schrijf resultaten weg in een logbestand (CSV). |
-| `--force` | Forceer conversie ook bij ICC mismatch (anders overslaan). |
 | `--preserve-metadata` | Kopieer metadata met ExifTool: <br>• `smart` – merge metadata (default gedrag)<br>• `all` – volledige kopie (waarden kunnen genormaliseerd worden; `ModifyDate`/`MetadataDate` bijgewerkt)<br>• `xmp` – alleen XMP secties |
 | `--config` | YAML-configbestand met standaardwaarden. |
 | `--version` | Toon de versie van de tool en stop. |
@@ -109,10 +104,20 @@ python icc_convert.py [bestanden of mappen] -s <source.icc> -t <target.icc> [opt
 
 ---
 
+## Bronprofiel detectie
+
+Het script leest het embedded ICC-profiel automatisch uit elke TIFF:
+
+- **Mét embedded profiel** → kleurconversie van embedded profiel naar doelprofiel.
+- **Zonder embedded profiel** → pixels ongewijzigd opgeslagen, doelprofiel direct ingebed.
+
+Welk bronprofiel per bestand gebruikt is, wordt gelogd in de uitvoer en het CSV-logbestand.
+
+---
+
 ## Config.yaml voorbeeld
 
 ```yaml
-source_icc: CNN8083DA.ICC
 target_icc: AdobeRGB1998.icc
 outdir: ./converted
 preserve_metadata: all
@@ -121,11 +126,10 @@ preserve_metadata: all
 ---
 
 ## Workflow samengevat
-1. Zoek ICC-profielen (`--list-icc`).  
-2. Kies bron- en doelprofiel.  
-3. Run conversie (`-s ... -t ...`).  
-4. Optioneel: metadata kopiëren (`--preserve-metadata`), logging (`--log`), outputmap (`--outdir`).  
-5. Gebruik `--force` om mismatches tóch te converteren.  
+1. Zoek ICC-profielen (`--list-icc`).
+2. Kies doelprofiel (`-t`).
+3. Run conversie — bronprofiel wordt automatisch per TIFF gelezen.
+4. Optioneel: metadata kopiëren (`--preserve-metadata`), logging (`--log`), outputmap (`--outdir`).
 
 ---
 
