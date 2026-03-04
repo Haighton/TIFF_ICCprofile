@@ -1,4 +1,5 @@
 import argparse
+import io
 import platform
 import shutil
 import subprocess
@@ -10,7 +11,7 @@ import yaml
 from PIL import Image, ImageCms
 from tqdm import tqdm
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 
 # Pad naar ExifTool afhankelijk van OS
 if platform.system() == "Windows":
@@ -101,79 +102,74 @@ def preserve_metadata(src, dst, mode="smart"):
         tqdm.write(f"Fout bij ExifTool: {e.stderr.decode().strip()}")
 
 
-def get_embedded_profile_name(img):
+def get_profile_name(profile_bytes):
     try:
-        if "icc_profile" in img.info:
-            profile_bytes = img.info["icc_profile"]
-            return ImageCms.getProfileName(profile_bytes)
+        return ImageCms.getProfileName(profile_bytes).strip()
     except Exception:
-        return None
-    return None
+        return "onbekend"
 
 
-def process_file(tiff_file, source_icc, target_icc, overwrite, preserve, outdir, force, expected_source_name):
+def process_file(tiff_file, target_icc, overwrite, preserve, outdir):
     try:
         with Image.open(tiff_file) as im:
-            embedded_name = get_embedded_profile_name(im)
-            if embedded_name and expected_source_name and embedded_name != expected_source_name:
-                if not force:
-                    return (tiff_file, False, f"Overgeslagen (ICC mismatch: {embedded_name})")
+            embedded_bytes = im.info.get("icc_profile")
 
-            transform = ImageCms.buildTransform(
-                str(source_icc), str(target_icc), "RGB", "RGB"
-            )
-            im_converted = ImageCms.applyTransform(im, transform)
+            with open(target_icc, "rb") as f:
+                target_profile_bytes = f.read()
 
-            # Zorg dat outputmap bestaat (alleen relevant bij non-overwrite)
+            if embedded_bytes:
+                # Kleurconversie: embedded profiel → doelprofiel
+                source_profile = ImageCms.ImageCmsProfile(io.BytesIO(embedded_bytes))
+                target_profile = ImageCms.ImageCmsProfile(io.BytesIO(target_profile_bytes))
+                transform = ImageCms.buildTransform(
+                    source_profile, target_profile, im.mode, im.mode
+                )
+                im_out = ImageCms.applyTransform(im, transform)
+                source_name = get_profile_name(embedded_bytes)
+                note = f"Geconverteerd van '{source_name}'"
+            else:
+                # Geen embedded profiel: pixels ongewijzigd, doelprofiel ingebed
+                im_out = im.copy()
+                note = "Geen bronprofiel gevonden; doelprofiel direct ingebed"
+
             outdir.mkdir(parents=True, exist_ok=True)
 
             if overwrite:
-                # Schrijf tmp naast origineel (zelfde station, dus geen rename probleem)
                 tmp_path = tiff_file.parent / f"{tiff_file.stem}_tmp.tif"
                 final_path = tiff_file
             else:
                 tmp_path = outdir / tiff_file.name
                 final_path = tmp_path
 
-            with open(target_icc, "rb") as f:
-                target_profile = f.read()
-            im_converted.save(tmp_path, format="TIFF",
-                              icc_profile=target_profile)
+            im_out.save(tmp_path, format="TIFF", icc_profile=target_profile_bytes)
 
             if preserve:
                 preserve_metadata(tiff_file, tmp_path, preserve)
 
-            # Als we overwrite gebruiken: vervang origineel pas nu
             if overwrite:
                 tmp_path.replace(final_path)
 
-        return (tiff_file, True, None)
+        return (tiff_file, True, note)
     except Exception as e:
         return (tiff_file, False, str(e))
 
 
-def convert_icc(tiff_files, source_icc, target_icc, overwrite=False, preserve=None, outdir=Path("."), force=False):
+def convert_icc(tiff_files, target_icc, overwrite=False, preserve=None, outdir=Path(".")):
     results = []
-    expected_source_name = None
-    try:
-        expected_source_name = ImageCms.getProfileName(
-            open(source_icc, "rb").read())
-    except Exception:
-        pass
 
     with ProcessPoolExecutor() as executor:
         futures = {
-            executor.submit(process_file, t, source_icc, target_icc, overwrite, preserve, outdir, force, expected_source_name): t
+            executor.submit(process_file, t, target_icc, overwrite, preserve, outdir): t
             for t in tiff_files
         }
         with tqdm(as_completed(futures), total=len(futures), desc="Converting", unit="file") as pbar:
             for f in pbar:
-                tiff_file, ok, err = f.result()
+                tiff_file, ok, msg = f.result()
                 if ok:
-                    tqdm.write(f"OK {tiff_file}")
+                    tqdm.write(f"OK {tiff_file}: {msg}")
                 else:
-                    tqdm.write(f"Fout {tiff_file}: {err}")
-                results.append((tiff_file, ok, err))
+                    tqdm.write(f"Fout {tiff_file}: {msg}")
+                results.append((tiff_file, ok, msg))
 
     success = sum(1 for _, ok, _ in results if ok)
     failed = sum(1 for _, ok, _ in results if not ok)
@@ -190,20 +186,22 @@ def load_config(config_file):
 
 def save_log(logfile, results):
     with open(logfile, "w", encoding="utf-8") as f:
-        f.write("file,status,error\n")
-        for tiff_file, ok, err in results:
+        f.write("file,status,message\n")
+        for tiff_file, ok, msg in results:
             status = "ok" if ok else "failed"
-            f.write(f"{tiff_file},{status},{err or ''}\n")
+            f.write(f"{tiff_file},{status},{msg or ''}\n")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Converteer TIFF bestanden van een bron-ICC naar een doel-ICC (optioneel metadata behouden)."
+        description=(
+            "Converteer TIFF bestanden naar een doel-ICC profiel. "
+            "Het bronprofiel wordt automatisch uit de TIFF gelezen. "
+            "Bestanden zonder embedded profiel krijgen het doelprofiel direct ingebed."
+        )
     )
     parser.add_argument("paths", nargs="*",
                         help="Pad(en) naar TIFF bestand(en) of map(pen).")
-    parser.add_argument(
-        "-s", "--source-icc", help="Bestandsnaam van bron ICC-profiel (bijv. CNN8083DA.ICC).")
     parser.add_argument(
         "-t", "--target-icc", help="Bestandsnaam van doel ICC-profiel (bijv. AdobeRGB1998.icc).")
     parser.add_argument("--icc-dirs", nargs="*", default=[],
@@ -222,8 +220,6 @@ def main():
                         help="Map om geconverteerde bestanden op te slaan (default: ./output).")
     parser.add_argument("--log", type=Path,
                         help="Logbestand (CSV) om resultaten in te schrijven.")
-    parser.add_argument("--force", action="store_true",
-                        help="Forceer conversie ook als ICC-profiel mismatcht (anders wordt bestand overgeslagen).")
     parser.add_argument("--preserve-metadata", choices=["smart", "all", "xmp"], help=(
         "Kopieer metadata met ExifTool:\n"
         "  smart – merge metadata (default gedrag)\n"
@@ -238,28 +234,24 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print(f"icc_convert.py versie {__version__}")
+        print(f"icc_convert_v2.py versie {__version__}")
         sys.exit(0)
 
     config = load_config(args.config)
 
-    # Als zowel --overwrite als --outdir is opgegeven: waarschuwing
     if args.overwrite and args.outdir != Path("./output"):
         print("Let op: --overwrite is gekozen, dus de optie --outdir wordt genegeerd.")
 
-    # Vul defaults uit config in
-    for key in ["source_icc", "target_icc", "outdir", "preserve_metadata", "log"]:
+    for key in ["target_icc", "outdir", "preserve_metadata", "log"]:
         if getattr(args, key, None) in [None, [], Path("./output")]:
             if key in config:
                 setattr(args, key, config[key])
 
-    # Zorg dat outdir en log altijd Path zijn
     if isinstance(args.outdir, str):
         args.outdir = Path(args.outdir)
     if isinstance(args.log, str):
         args.log = Path(args.log)
 
-    # Combineer icc_dirs (CLI + config)
     icc_dirs = args.icc_dirs[:]
     if "icc_dirs" in config:
         icc_dirs.extend(config["icc_dirs"])
@@ -275,14 +267,9 @@ def main():
                 print(f"  {name:<40} {path}")
         return
 
-    if not args.source_icc or not args.target_icc:
-        parser.error(
-            "Je moet zowel --source-icc als --target-icc opgeven (tenzij je --list-icc gebruikt).")
+    if not args.target_icc:
+        parser.error("Je moet --target-icc opgeven (tenzij je --list-icc gebruikt).")
 
-    if args.source_icc not in icc_map:
-        print(f"Bronprofiel '{args.source_icc}' niet gevonden.")
-        print(f"Beschikbare profielen: {', '.join(sorted(icc_map.keys()))}")
-        return
     if args.target_icc not in icc_map:
         print(f"Doelprofiel '{args.target_icc}' niet gevonden.")
         print(f"Beschikbare profielen: {', '.join(sorted(icc_map.keys()))}")
@@ -292,7 +279,6 @@ def main():
         print("Optie --preserve-metadata genegeerd: ExifTool is niet gevonden.")
         args.preserve_metadata = None
 
-    source_icc = icc_map[args.source_icc]
     target_icc = icc_map[args.target_icc]
 
     tiff_files = find_tiff_files(args.paths)
@@ -302,12 +288,10 @@ def main():
 
     results = convert_icc(
         tiff_files,
-        source_icc,
         target_icc,
         args.overwrite,
         args.preserve_metadata,
         args.outdir,
-        args.force,
     )
 
     if args.log:
