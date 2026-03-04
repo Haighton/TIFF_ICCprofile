@@ -144,7 +144,7 @@ def process_file(tiff_file, target_icc, overwrite, preserve, outdir):
                     tmp_path.replace(final_path)
 
                 source_name = get_profile_name(embedded_bytes)
-                return (tiff_file, True, f"Geconverteerd van '{source_name}'")
+                return (tiff_file, True, f"Geconverteerd van '{source_name}'", source_name)
 
             else:
                 # Geen embedded profiel: alleen ICC-metadata injecteren via ExifTool
@@ -158,7 +158,7 @@ def process_file(tiff_file, target_icc, overwrite, preserve, outdir):
                     cmd = [exiftool, f"-icc_profile<={str(target_icc)}",
                            "-overwrite_original", str(dst)]
                     subprocess.run(cmd, check=True, capture_output=True)
-                    return (tiff_file, True, "Geen bronprofiel; ICC-metadata bijgewerkt via ExifTool")
+                    return (tiff_file, True, "Geen bronprofiel; ICC-metadata bijgewerkt via ExifTool", None)
                 else:
                     # Fallback: Pillow re-save met doelprofiel
                     im_out = im.copy()
@@ -173,12 +173,12 @@ def process_file(tiff_file, target_icc, overwrite, preserve, outdir):
                         preserve_metadata(tiff_file, tmp_path, preserve)
                     if overwrite:
                         tmp_path.replace(final_path)
-                    return (tiff_file, True, "Geen bronprofiel; doelprofiel ingebed via Pillow (ExifTool niet beschikbaar)")
+                    return (tiff_file, True, "Geen bronprofiel; doelprofiel ingebed via Pillow (ExifTool niet beschikbaar)", None)
 
     except subprocess.CalledProcessError as e:
-        return (tiff_file, False, f"ExifTool fout: {e.stderr.decode().strip()}")
+        return (tiff_file, False, f"ExifTool fout: {e.stderr.decode().strip()}", None)
     except Exception as e:
-        return (tiff_file, False, str(e))
+        return (tiff_file, False, str(e), None)
 
 
 def convert_icc(tiff_files, target_icc, overwrite=False, preserve=None, outdir=Path(".")):
@@ -191,16 +191,32 @@ def convert_icc(tiff_files, target_icc, overwrite=False, preserve=None, outdir=P
         }
         with tqdm(as_completed(futures), total=len(futures), desc="Converting", unit="file") as pbar:
             for f in pbar:
-                tiff_file, ok, msg = f.result()
+                tiff_file, ok, msg, source_name = f.result()
                 if ok:
                     tqdm.write(f"OK {tiff_file}: {msg}")
                 else:
                     tqdm.write(f"Fout {tiff_file}: {msg}")
-                results.append((tiff_file, ok, msg))
+                results.append((tiff_file, ok, msg, source_name))
 
-    success = sum(1 for _, ok, _ in results if ok)
-    failed = sum(1 for _, ok, _ in results if not ok)
-    print(f"\nKlaar: {success} succesvol, {failed} mislukt")
+    success = sum(1 for _, ok, _, _ in results if ok)
+    failed = sum(1 for _, ok, _, _ in results if not ok)
+
+    # Samenvatting per bronprofiel (alleen succesvolle bestanden)
+    profile_counts = {}
+    for _, ok, _, source_name in results:
+        if ok:
+            label = source_name if source_name else "(geen bronprofiel)"
+            profile_counts[label] = profile_counts.get(label, 0) + 1
+
+    print(f"\n--- Samenvatting ---")
+    print(f"Totaal:     {len(results)}")
+    print(f"Succesvol:  {success}")
+    print(f"Mislukt:    {failed}")
+    if profile_counts:
+        print(f"\nPer bronprofiel:")
+        for name, count in sorted(profile_counts.items(), key=lambda x: -x[1]):
+            print(f"  {name:<45} {count:>5} bestand(en)")
+
     return results
 
 
@@ -213,10 +229,10 @@ def load_config(config_file):
 
 def save_log(logfile, results):
     with open(logfile, "w", encoding="utf-8") as f:
-        f.write("file,status,message\n")
-        for tiff_file, ok, msg in results:
+        f.write("file,status,source_profile,message\n")
+        for tiff_file, ok, msg, source_name in results:
             status = "ok" if ok else "failed"
-            f.write(f"{tiff_file},{status},{msg or ''}\n")
+            f.write(f"{tiff_file},{status},{source_name or ''},{msg or ''}\n")
 
 
 def main():
