@@ -1,9 +1,6 @@
 # Configuratiebestand voor icc_convert.py
 
-# Bron ICC profiel (zoals gevonden met --list-icc)
-source_icc: CNN8083DA.ICC
-
-# Doel ICC profiel
+# Doel ICC profiel (zoals gevonden met --list-icc)
 target_icc: AdobeRGB1998.icc
 
 # Map voor geconverteerde bestanden (optioneel)
