@@ -60,10 +60,12 @@ def find_tiff_files(paths):
             print(f"Pad bestaat niet: {path}")
             continue
         if path.is_dir():
-            files.extend(path.rglob("*.tif"))
-            files.extend(path.rglob("*.tiff"))
+            for f in path.rglob("*.tif"):
+                files.append((f, path))
+            for f in path.rglob("*.tiff"):
+                files.append((f, path))
         elif path.is_file() and path.suffix.lower() in [".tif", ".tiff"]:
-            files.append(path)
+            files.append((path, path.parent))
     return files
 
 
@@ -109,7 +111,7 @@ def get_profile_name(profile_bytes):
         return "onbekend"
 
 
-def process_file(tiff_file, target_icc, overwrite, preserve, outdir):
+def process_file(tiff_file, base_dir, target_icc, overwrite, preserve, outdir):
     try:
         with Image.open(tiff_file) as im:
             embedded_bytes = im.info.get("icc_profile")
@@ -117,7 +119,9 @@ def process_file(tiff_file, target_icc, overwrite, preserve, outdir):
             with open(target_icc, "rb") as f:
                 target_profile_bytes = f.read()
 
-            outdir.mkdir(parents=True, exist_ok=True)
+            rel_path = tiff_file.relative_to(base_dir)
+            out_path = outdir / rel_path
+            out_path.parent.mkdir(parents=True, exist_ok=True)
 
             if embedded_bytes:
                 # Kleurconversie: embedded profiel → doelprofiel via Pillow
@@ -132,7 +136,7 @@ def process_file(tiff_file, target_icc, overwrite, preserve, outdir):
                     tmp_path = tiff_file.parent / f"{tiff_file.stem}_tmp.tif"
                     final_path = tiff_file
                 else:
-                    tmp_path = outdir / tiff_file.name
+                    tmp_path = out_path
                     final_path = tmp_path
 
                 im_out.save(tmp_path, format="TIFF", icc_profile=target_profile_bytes)
@@ -153,7 +157,7 @@ def process_file(tiff_file, target_icc, overwrite, preserve, outdir):
                     if overwrite:
                         dst = tiff_file
                     else:
-                        dst = outdir / tiff_file.name
+                        dst = out_path
                         shutil.copy2(tiff_file, dst)
                     cmd = [exiftool, f"-icc_profile<={str(target_icc)}",
                            "-overwrite_original", str(dst)]
@@ -166,7 +170,7 @@ def process_file(tiff_file, target_icc, overwrite, preserve, outdir):
                         tmp_path = tiff_file.parent / f"{tiff_file.stem}_tmp.tif"
                         final_path = tiff_file
                     else:
-                        tmp_path = outdir / tiff_file.name
+                        tmp_path = out_path
                         final_path = tmp_path
                     im_out.save(tmp_path, format="TIFF", icc_profile=target_profile_bytes)
                     if preserve:
@@ -186,8 +190,8 @@ def convert_icc(tiff_files, target_icc, overwrite=False, preserve=None, outdir=P
 
     with ProcessPoolExecutor() as executor:
         futures = {
-            executor.submit(process_file, t, target_icc, overwrite, preserve, outdir): t
-            for t in tiff_files
+            executor.submit(process_file, t, base_dir, target_icc, overwrite, preserve, outdir): t
+            for t, base_dir in tiff_files
         }
         with tqdm(as_completed(futures), total=len(futures), desc="Converting", unit="file") as pbar:
             for f in pbar:
