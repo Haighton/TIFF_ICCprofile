@@ -74,7 +74,7 @@ python icc_convert.py [bestanden of mappen] -t <target.icc> [opties]
   python icc_convert.py --list-icc --icc-dirs ./iccprofiles
   ```
 
-- Output in aparte map + logging naar CSV:
+- Output in aparte map met behoud van mappenstructuur + logging naar CSV:
   ```bash
   python icc_convert.py ./testdata -t AdobeRGB1998.icc --outdir ./converted --log resultaten.csv
   ```
@@ -95,7 +95,7 @@ python icc_convert.py [bestanden of mappen] -t <target.icc> [opties]
 | `--icc-dirs` | Extra directories om ICC-profielen in te zoeken. |
 | `--list-icc` | Toon alle gevonden ICC-profielen en stop daarna. |
 | `--overwrite` | Overschrijf de originele bestanden. |
-| `--outdir` | Map waar geconverteerde bestanden worden opgeslagen (default: `./output`). |
+| `--outdir` | Map waar geconverteerde bestanden worden opgeslagen (default: `./output`). De volledige mappenstructuur van de bron wordt gespiegeld. |
 | `--log` | Schrijf resultaten weg in een logbestand (CSV). |
 | `--preserve-metadata` | Kopieer metadata met ExifTool: <br>• `smart` – merge metadata (default gedrag)<br>• `all` – volledige kopie (waarden kunnen genormaliseerd worden; `ModifyDate`/`MetadataDate` bijgewerkt)<br>• `xmp` – alleen XMP secties |
 | `--config` | YAML-configbestand met standaardwaarden. |
@@ -112,6 +112,17 @@ Het script leest het embedded ICC-profiel automatisch uit elke TIFF:
 - **Zonder embedded profiel** → pixels ongewijzigd opgeslagen, doelprofiel direct ingebed.
 
 Welk bronprofiel per bestand gebruikt is, wordt gelogd in de uitvoer en het CSV-logbestand.
+
+---
+
+## Mappenstructuur
+
+Bij gebruik van `--outdir` wordt de volledige mappenstructuur van de bronmap gespiegeld in de outputmap:
+
+```
+./testdata/scan1/foo.tif        →  ./converted/scan1/foo.tif
+./testdata/scan2/sub/bar.tiff   →  ./converted/scan2/sub/bar.tiff
+```
 
 ---
 
