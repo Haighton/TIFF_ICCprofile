@@ -146,4 +146,4 @@ preserve_metadata: all
 
 ## Dev
 
-thomas.haighton@kb.nl voor KB Digitalisering (09-2025).
+thomas.haighton@kb.nl voor KB Digitalisering (03-2026).

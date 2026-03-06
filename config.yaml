@@ -14,5 +14,5 @@ icc_dirs:
   - ./iccprofiles
 
 
-# Logging naar CSV bestand (optioneel)
-log: resultaten.csv
+# Logging naar CSV bestand (optioneel, standaard uitgeschakeld)
+# log: resultaten.csv
